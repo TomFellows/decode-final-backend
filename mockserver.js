@@ -2,13 +2,22 @@ let express = require("express");
 let app = express();
 let bodyParser = require("body-parser");
 let MongoClient = require("mongodb").MongoClient;
-let url = "mongodb://admin:password123@ds119662.mlab.com:19662/decode";
+let admin = require("firebase-admin")
+let serviceAccount = require('./firebasekeyservice.json')
+let cookieParser = require('cookie-parser')
+let url = "mongodb://admin:password123@ds121282.mlab.com:21282/finalapp";
 let dbo;
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: "https://final-app-63dc4.firebaseio.com"
+  })
 
 app.use(bodyParser.raw({ type: "*/*" }));
 
 let serverState = {
-    users: []
+    users: [],
+    sessions: []
 }
 
 let testUser = {
@@ -83,7 +92,7 @@ let otherUsers = [
 
 
 // Connection to Mongo Database
-MongoClient.connect(url, (err, db) => {
+MongoClient.connect(url, { useNewUrlParser: true }, (err, db) => {
     if (err) throw err;
     dbo = db.db("decode")
     app.listen(4000, () => {
@@ -258,3 +267,43 @@ app.post('/globalSearch', (req, res) => {
         }))
     }
 });
+
+app.post('/sessionLogin', (req, res) => {
+    // Get the ID token passed and the CSRF token.
+    const idToken = JSON.parse(req.body).idToken
+    let uid = ''
+
+    admin.auth().verifyIdToken(idToken)
+        .then(function (decodedToken) {
+            uid = decodedToken.uid
+        })
+        .then(() => {
+
+            // Set session expiration to 5 days.
+            const expiresIn = 60 * 60 * 24 * 5 * 1000;
+            // Create the session cookie. This will also verify the ID token in the process.
+            // The session cookie will have the same claims as the ID token.
+            // To only allow session cookie setting on recent sign-in, auth_time in ID token
+            // can be checked to ensure user was recently signed in before creating a session cookie.
+            admin.auth().createSessionCookie(idToken, { expiresIn }).then((sessionCookie) => {
+                // Set cookie policy for session cookie.
+                const options = { maxAge: expiresIn, httpOnly: true };
+
+                //Link the cookie to the userId
+                serverState.sessions[sessionCookie] = uid
+
+                res.cookie('session', sessionCookie, options);
+                res.send(JSON.stringify({ status: 'success' }));
+            });
+        })
+})
+
+app.post('/getInfo', (req, res) => {
+
+    const sessionCookie = req.cookies.session
+
+    let response = users[serverState.sessions[sessionCookie]]
+    
+    res.send(JSON.stringify(response))
+
+})
