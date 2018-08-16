@@ -13,11 +13,12 @@ admin.initializeApp({
     databaseURL: "https://final-app-63dc4.firebaseio.com"
 })
 
+app.use(cookieParser())
 app.use(bodyParser.raw({ type: "*/*" }));
 
 let serverState = {
     users: [],
-    sessions: []
+    sessions: {}
 }
 
 let testUser = {

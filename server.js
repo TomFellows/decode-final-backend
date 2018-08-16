@@ -75,6 +75,7 @@ app.post('/createAccount', (req, res) => {
                     .then((userRecord) => {
 
                         let newUser = {
+                            username: '',
                             userId: uid,
                             firstName: '',
                             lastName: '',
@@ -162,6 +163,7 @@ app.post('/modifyProfile', (req, res) => {
     if (uid) {
         dbo.collection("users").updateOne(query, {
             $set: {
+                username: parsedBody.username,
                 location: parsedBody.location,
                 firstName: parsedBody.firstName,
                 lastName: parsedBody.lastName,
@@ -315,7 +317,7 @@ app.post('/getCurrentUser', (req, res) => {
     if (uid) {
         dbo.collection("users").findOne(query, (err, result) => {
             if (err) throw err;
-            console.log("got userById" + result)
+            console.log("got currentUser" + result)
             res.send(JSON.stringify({
                 success: true,
                 user: result
@@ -331,11 +333,20 @@ app.post('/getCurrentUser', (req, res) => {
 
 app.post('/getUserByUsername', (req, res) => {
     let parsedBody = JSON.parse(req.body)
-    if (parsedBody.username) {
-        res.send(JSON.stringify({
-            success: true,
-            user: otherUsers[0]
-        }))
+    const sessionCookie = req.cookies.session
+    let uid = serverState.sessions[sessionCookie]
+    let query = {username: parsedBody.username}
+    if (uid) {
+        dbo.collection("users").findOne(query, (err, result) => {
+            if (err) throw err;
+            console.log(result)
+            res.send(JSON.stringify({
+                success: true,
+                user: result
+            })
+        )
+        })
+        
     } else {
         res.send(JSON.stringify({
             success: false,
