@@ -21,8 +21,6 @@ let serverState = {
 }
 
 let testUser = {
-    username: "bob",
-    password: "password123",
     email: "bob@gmail.com",
     userId: 12345,
     firstName: "Bob",
@@ -34,19 +32,17 @@ let testUser = {
     experience: "string describing playing experience",
     seeking: ["session", "gig"],
     connections: [
-        { username: "franco325", userId: 3 },
-        { username: "tom", userId: 456 }
+        { userId: 3 },
+        { userId: 456 }
     ],
     reviews: [
-        { overall: 4, skill: 5, reliability: 3, comment: "some string of feedback" },
-        { overall: 3, skill: 3, reliability: 3, comment: "pretty average" }
+        {reviewerId: 3, review: { overall: 4, skill: 5, reliability: 3, comment: "some string of feedback" }},
+        {reviewerId: 456, review: { overall: 3, skill: 3, reliability: 3, comment: "pretty average" }}
     ]
 }
 
 let otherUsers = [
     {
-        username: "franco325",
-        password: "pwd123",
         email: "ffc@gmail.com",
         userId: 3,
         firstName: "Francis",
@@ -58,17 +54,15 @@ let otherUsers = [
         experience: "years playing with touring psychedelic symphonies",
         seeking: ["jam", "gig"],
         connections: [
-            { username: "bob", userId: 12345 },
-            { username: "tom", userId: 456 }
+            { userId: 12345 },
+            { userId: 456 }
         ],
         reviews: [
-            { overall: 3, skill: 1, reliability: 5, comment: "Francis is always present ahead of time and ready to go, but vastly overestimates his abilities" },
-            { overall: 3, skill: 5, reliability: 1, comment: "Super unreliable, but a musical genius" }
+            {reviewerId: 12345, review: { overall: 3, skill: 1, reliability: 5, comment: "Francis is always present ahead of time and ready to go, but vastly overestimates his abilities" }},
+            {reviewerId: 456, review: { overall: 3, skill: 5, reliability: 1, comment: "Super unreliable, but a musical genius" }}
         ]
     },
     {
-        username: "tom",
-        password: "password1",
         email: "tomasfellows@gmail.com",
         userId: 456,
         firstName: "Tomas",
@@ -80,12 +74,12 @@ let otherUsers = [
         experience: "7 years playing, writing, and recording in a band",
         seeking: ["jam", "gig", "project"],
         connections: [
-            { username: "bob", userId: 12345 },
-            { username: "franco325", userId: 3 }
+            { userId: 12345 },
+            { userId: 3 }
         ],
         reviews: [
-            { overall: 5, skill: 3, reliability: 5, comment: "Perfect last minute fill-in for our gig" },
-            { overall: 3, skill: 2, reliability: 4, comment: "Struggled with the material, but was dedicated to getting it right" }
+            { reviewerId: 12345, review: {overall: 5, skill: 3, reliability: 5, comment: "Perfect last minute fill-in for our gig" }},
+            { reviewerId: 3, review: {overall: 3, skill: 2, reliability: 4, comment: "Struggled with the material, but was dedicated to getting it right" }}
         ]
     }
 ]
@@ -94,7 +88,7 @@ let otherUsers = [
 // Connection to Mongo Database
 MongoClient.connect(url, { useNewUrlParser: true }, (err, db) => {
     if (err) throw err;
-    dbo = db.db("decode")
+    dbo = db.db("finalapp")
     app.listen(4000, () => {
         console.log("Listening on port 4000");
     })
@@ -267,6 +261,28 @@ app.post('/globalSearch', (req, res) => {
         }))
     }
 });
+
+app.post('/getCurrentUser', (req, res) => {
+    let parsedBody = JSON.parse(req.body)
+    //const sessionCookie = req.cookies.session
+    let uid = parsedBody.userId //serverState.sessions[sessionCookie]
+    let query = { userId: uid }
+    if (uid) {
+        dbo.collection("users").findOne(query, (err, result) => {
+            if (err) throw err;
+            console.log("got userById" + result)
+            res.send(JSON.stringify({
+                success: true,
+                user: testUser
+            }))
+        })
+    } else {
+        res.send(JSON.stringify({
+            success: false,
+            reason: "no session ID"
+        }))
+    }
+})
 
 app.post('/sessionLogin', (req, res) => {
     // Get the ID token passed and the CSRF token.
