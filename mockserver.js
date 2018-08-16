@@ -21,6 +21,7 @@ let serverState = {
 }
 
 let testUser = {
+    username: "Bobster",
     email: "bob@gmail.com",
     userId: 12345,
     firstName: "Bob",
@@ -42,7 +43,8 @@ let testUser = {
 }
 
 let otherUsers = [
-    {
+    {   
+        username: "franco345",
         email: "ffc@gmail.com",
         userId: 3,
         firstName: "Francis",
@@ -63,6 +65,7 @@ let otherUsers = [
         ]
     },
     {
+        username: "tommyknocker",
         email: "tomasfellows@gmail.com",
         userId: 456,
         firstName: "Tomas",
@@ -263,9 +266,8 @@ app.post('/globalSearch', (req, res) => {
 });
 
 app.post('/getCurrentUser', (req, res) => {
-    let parsedBody = JSON.parse(req.body)
-    //const sessionCookie = req.cookies.session
-    let uid = parsedBody.userId //serverState.sessions[sessionCookie]
+    const sessionCookie = req.cookies.session
+    let uid = serverState.sessions[sessionCookie]
     let query = { userId: uid }
     if (uid) {
         dbo.collection("users").findOne(query, (err, result) => {
@@ -280,6 +282,21 @@ app.post('/getCurrentUser', (req, res) => {
         res.send(JSON.stringify({
             success: false,
             reason: "no session ID"
+        }))
+    }
+})
+
+app.post('/getUserByUsername', (req, res) => {
+    let parsedBody = JSON.parse(req.body)
+    if(parsedBody.username) {
+        res.send(JSON.stringify({
+            success: true,
+            user: otherUsers[0]
+        }))
+    } else {
+        res.send(JSON.stringify({
+            success: false,
+            reason: "could not search"
         }))
     }
 })
