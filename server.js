@@ -329,6 +329,21 @@ app.post('/getCurrentUser', (req, res) => {
     }
 })
 
+app.post('/getUserByUsername', (req, res) => {
+    let parsedBody = JSON.parse(req.body)
+    if (parsedBody.username) {
+        res.send(JSON.stringify({
+            success: true,
+            user: otherUsers[0]
+        }))
+    } else {
+        res.send(JSON.stringify({
+            success: false,
+            reason: "could not search"
+        }))
+    }
+})
+
 app.post('/upload', (req, res) => {
     uploader.upload(req, res, (err) => {
         if (err) {

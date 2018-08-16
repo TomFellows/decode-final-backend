@@ -11,7 +11,7 @@ let dbo;
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://final-app-63dc4.firebaseio.com"
-  })
+})
 
 app.use(bodyParser.raw({ type: "*/*" }));
 
@@ -37,13 +37,13 @@ let testUser = {
         { userId: 456 }
     ],
     reviews: [
-        {reviewerId: 3, review: { overall: 4, skill: 5, reliability: 3, comment: "some string of feedback" }},
-        {reviewerId: 456, review: { overall: 3, skill: 3, reliability: 3, comment: "pretty average" }}
+        { reviewerId: 3, review: { overall: 4, skill: 5, reliability: 3, comment: "some string of feedback" } },
+        { reviewerId: 456, review: { overall: 3, skill: 3, reliability: 3, comment: "pretty average" } }
     ]
 }
 
 let otherUsers = [
-    {   
+    {
         username: "franco345",
         email: "ffc@gmail.com",
         userId: 3,
@@ -60,8 +60,8 @@ let otherUsers = [
             { userId: 456 }
         ],
         reviews: [
-            {reviewerId: 12345, review: { overall: 3, skill: 1, reliability: 5, comment: "Francis is always present ahead of time and ready to go, but vastly overestimates his abilities" }},
-            {reviewerId: 456, review: { overall: 3, skill: 5, reliability: 1, comment: "Super unreliable, but a musical genius" }}
+            { reviewerId: 12345, review: { overall: 3, skill: 1, reliability: 5, comment: "Francis is always present ahead of time and ready to go, but vastly overestimates his abilities" } },
+            { reviewerId: 456, review: { overall: 3, skill: 5, reliability: 1, comment: "Super unreliable, but a musical genius" } }
         ]
     },
     {
@@ -81,8 +81,8 @@ let otherUsers = [
             { userId: 3 }
         ],
         reviews: [
-            { reviewerId: 12345, review: {overall: 5, skill: 3, reliability: 5, comment: "Perfect last minute fill-in for our gig" }},
-            { reviewerId: 3, review: {overall: 3, skill: 2, reliability: 4, comment: "Struggled with the material, but was dedicated to getting it right" }}
+            { reviewerId: 12345, review: { overall: 5, skill: 3, reliability: 5, comment: "Perfect last minute fill-in for our gig" } },
+            { reviewerId: 3, review: { overall: 3, skill: 2, reliability: 4, comment: "Struggled with the material, but was dedicated to getting it right" } }
         ]
     }
 ]
@@ -98,24 +98,24 @@ MongoClient.connect(url, { useNewUrlParser: true }, (err, db) => {
 })
 
 app.post('/createAccount', (req, res) => {
-let account = JSON.parse(req.body)
-if(account.username && account.password) {
-    res.send(JSON.stringify({
-        success: true,
-        userId: 12345
-    }))
-}else {
-    res.send(JSON.stringify({
-        success: false,
-        reason: "account could not be created"
-    }))
-}
+    let account = JSON.parse(req.body)
+    if (account.username && account.password) {
+        res.send(JSON.stringify({
+            success: true,
+            userId: 12345
+        }))
+    } else {
+        res.send(JSON.stringify({
+            success: false,
+            reason: "account could not be created"
+        }))
+    }
 
 })
 
 app.post('/login', (req, res) => {
     let account = JSON.parse(req.body)
-    if(account.username && account.password) {
+    if (account.username && account.password) {
         res.send(JSON.stringify({
             success: true,
             userId: 12345
@@ -131,7 +131,7 @@ app.post('/login', (req, res) => {
 
 app.post('/logout', (req, res) => {
     let account = JSON.parse(req.body)
-    if(account.username) {
+    if (account.username) {
         res.send(JSON.stringify({
             success: true
         }))
@@ -145,7 +145,7 @@ app.post('/logout', (req, res) => {
 
 app.post('/getUsersByCriteria', (req, res) => {
     let search = JSON.parse(req.body)
-    if(search.instrument || search.style || search.seeking) {
+    if (search.instrument || search.style || search.seeking) {
         res.send(JSON.stringify({
             success: true,
             result: [
@@ -163,7 +163,7 @@ app.post('/getUsersByCriteria', (req, res) => {
 
 app.post('/getUserById', (req, res) => {
     let account = JSON.parse(req.body)
-    if(account.userId) {
+    if (account.userId) {
         res.send(JSON.stringify({
             success: true,
             user: otherUsers[1]
@@ -178,7 +178,7 @@ app.post('/getUserById', (req, res) => {
 
 app.post('/modifyProfile', (req, res) => {
     let account = JSON.parse(req.body)
-    if(account.userId || account.instrument || account.style || account.seeking) {
+    if (account.userId || account.instrument || account.style || account.seeking) {
         res.send(JSON.stringify({
             success: true
         }))
@@ -191,8 +191,8 @@ app.post('/modifyProfile', (req, res) => {
 })
 
 app.post('/addConnection', (req, res) => {
-    let account = JSON.parse(req.body) 
-    if(account.userId && account.connectionUserId) {
+    let account = JSON.parse(req.body)
+    if (account.userId && account.connectionUserId) {
         res.send(JSON.stringify({
             success: true
         }))
@@ -206,7 +206,7 @@ app.post('/addConnection', (req, res) => {
 
 app.post('/removeConnection', (req, res) => {
     let account = JSON.parse(req.body)
-    if(account.userId && account.connectionUserId) {
+    if (account.userId && account.connectionUserId) {
         res.send(JSON.stringify({
             success: true
         }))
@@ -220,10 +220,10 @@ app.post('/removeConnection', (req, res) => {
 
 app.post('/getAllConnections', (req, res) => {
     let account = JSON.parse(req.body)
-    if(account.userId) {
+    if (account.userId) {
         res.send(JSON.stringify({
             success: true,
-            connectedUsers: [otherUsers[0],otherUsers[1]]
+            connectedUsers: [otherUsers[0], otherUsers[1]]
         }))
     } else {
         res.send(JSON.stringify({
@@ -236,7 +236,7 @@ app.post('/getAllConnections', (req, res) => {
 
 app.post('/reviewUser', (req, res) => {
     let account = JSON.parse(req.body)
-    if(account.userId && account.revieweeId && account.review) {
+    if (account.userId && account.revieweeId && account.review) {
         res.send(JSON.stringify({
             success: true
         }))
@@ -250,13 +250,13 @@ app.post('/reviewUser', (req, res) => {
 
 app.post('/globalSearch', (req, res) => {
     let search = JSON.parse(req.body)
-    if(search.keyword) {
+    if (search.keyword) {
         res.send(JSON.stringify({
             success: true,
             users: [
                 otherUsers[0]
             ]
-        } ) )
+        }))
     } else {
         res.send(JSON.stringify({
             success: false,
@@ -288,7 +288,7 @@ app.post('/getCurrentUser', (req, res) => {
 
 app.post('/getUserByUsername', (req, res) => {
     let parsedBody = JSON.parse(req.body)
-    if(parsedBody.username) {
+    if (parsedBody.username) {
         res.send(JSON.stringify({
             success: true,
             user: otherUsers[0]
@@ -336,7 +336,7 @@ app.post('/getInfo', (req, res) => {
     const sessionCookie = req.cookies.session
 
     let response = users[serverState.sessions[sessionCookie]]
-    
+
     res.send(JSON.stringify(response))
 
 })
