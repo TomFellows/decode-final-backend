@@ -179,7 +179,7 @@ app.post('/getUserById', (req, res) => {
 
 app.post('/modifyProfile', (req, res) => {
     let account = JSON.parse(req.body)
-    if (account.userId || account.instrument || account.style || account.seeking) {
+    if (account.userId || account.instruments || account.styles || account.seeking) {
         res.send(JSON.stringify({
             success: true
         }))
