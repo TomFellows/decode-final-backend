@@ -1,4 +1,5 @@
 let multer = require("multer")
+let path = require("path")
 
 
 // Storage for uploads
@@ -10,8 +11,11 @@ let storage = multer.diskStorage({
 });
 
 // Init Upload Variable
-let upload = multer({
+const upload = multer({
     storage: storage,
+    limis: {
+        fileSize: 1000000
+    },
     fileFilter: function(req, file, cb) {
         checkFileType(file, cb);
     }

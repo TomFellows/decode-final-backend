@@ -10,19 +10,61 @@ let url = "mongodb://admin:password123@ds121282.mlab.com:21282/finalapp";
 let dbo;
 
 
+
+let multer = require("multer")
+let path = require("path")
+
+
+// Storage for uploads
+const storage = multer.diskStorage({ 
+    destination: './public/uploads/',
+    filename: function(req, file, cb) {
+        cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname))
+    }
+});
+
+// Init Upload Variable
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 1000000
+    },
+    fileFilter: function(req, file, cb) {
+        checkFileType(file, cb);
+    }
+}).single("image")
+
+// Photo file type checker
+function checkFileType(file, cb) {
+    // Accepted types
+    const fileTypes = /jpeg|jpg|png|gif/;
+    // Verify extension
+    const extName = fileTypes.test(path.extname(file.originalname).toLowerCase())
+    // Verify mimetype
+    const mimeType = fileTypes.test(file.mimetype)
+
+    if(mimeType && extName){
+        return cb(null, true)
+    } else {
+        return cb("Error: Images Only")
+    }
+}
+
+
+
+
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: "https://final-app-63dc4.firebaseio.com"
   })
 
-
-app.use(bodyParser.raw({ type: "*/*" }));
+app.use(cookieParser())
+app.use(bodyParser.raw({ type: "*/*", limit: "10mb" }));
 
 // Public Folder
 app.use(express.static('./public'));
 
 let serverState = {
-    users: [],
     sessions: {}
 }
 
@@ -59,9 +101,9 @@ MongoClient.connect(url, { useNewUrlParser: true }, (err, db) => {
     })
 })
 
-// Creating an inital account using firebase account
+// Creating an inital account using firebase login information
 
-app.post('/createAccount', (req, res) => {
+app.get('/createAccount', (req, res) => {
 
     const sessionCookie = req.cookies.session
     let uid = serverState.sessions[sessionCookie]
@@ -75,19 +117,20 @@ app.post('/createAccount', (req, res) => {
                     .then((userRecord) => {
 
                         let newUser = {
-                            username: '',
+                            username: userRecord.username,
                             userId: uid,
                             firstName: '',
                             lastName: '',
                             email: userRecord.email,
-                            location: "",
+                            location: '',
                             instruments: [],
                             styles: [],
-                            skillLevel: "",
-                            experience: "",
+                            skillLevel: '',
+                            experience: '',
                             seeking: [],
                             connections: [],
-                            reviews: []
+                            reviews: [],
+                            image: ''
                         }
                         dbo.collection("users").insertOne(newUser, (err, result) => {
                             if (err) throw err;
@@ -120,7 +163,7 @@ app.post('/createAccount', (req, res) => {
     }
 })
 
-app.post('/logout', (req, res) => {
+app.get('/logout', (req, res) => {
     const sessionCookie = req.cookies.session
     delete serverState.sessions[sessionCookie]
 
@@ -141,6 +184,71 @@ app.post('/logout', (req, res) => {
 
 app.post('/getUsersByCriteria', (req, res) => {
     let parsedBody = JSON.parse(req.body)
+    //const sessionCookie = req.cookies.session
+    let uid = parsedBody.userId //serverState.sessions[sessionCookie]
+
+    let instrumentSearch = '';
+    let styleSearch = '';
+    let skillSearch = '';
+    let seekingSearch = '';
+    let locationSearch = '';
+
+    instrumentSearch = parsedBody.instruments
+    styleSearch = parsedBody.styles
+    skillSearch = parsedBody.skillLevel
+    seekingSearch = parsedBody.seeking
+    locationSearch = parsedBody.location
+
+    let instrumentRegex = new RegExp(instrumentSearch, "i")
+    let styleRegex = new RegExp(styleSearch, "i")
+    let skillRegex = new RegExp(skillSearch, "i")
+    let seekingRegex = new RegExp(seekingSearch, "i")
+    let locationRegex = new RegExp(locationSearch, "i")
+
+    let query = {
+        $and: [
+            {
+                instruments: {
+                    $regex: instrumentRegex
+                }
+            },
+            {
+                styles: {
+                    $regex: styleRegex
+                }
+            },
+            {
+                skillLevel: {
+                    $regex: skillRegex
+                }
+            },
+            {
+                seeking: {
+                    $regex: seekingRegex
+                }
+            },
+            {
+                location: {
+                    $regex: locationRegex
+                }
+            }
+        ]
+    }
+    if (uid) {
+        dbo.collection("users").find(query).toArray((err, result) => {
+            if (err) throw err;
+            console.log(result);
+            res.send(JSON.stringify({
+                success: true,
+                users: result
+            }))
+        })
+    } else {
+        res.send(JSON.stringify({
+            success: false,
+            reason: "no session ID"
+        }))
+    }
 
 })
 
@@ -236,7 +344,7 @@ app.post('/removeConnection', (req, res) => {
 
 })
 
-app.post('/getAllConnections', (req, res) => {
+app.get('/getAllConnections', (req, res) => {
     const sessionCookie = req.cookies.session
     let uid = serverState.sessions[sessionCookie]
     query = { userId: uid }
@@ -254,8 +362,6 @@ app.post('/getAllConnections', (req, res) => {
             reason: "couldn't remove connection"
         }))
     }
-
-
 })
 
 app.post('/reviewUser', (req, res) => {
@@ -298,10 +404,43 @@ app.post('/globalSearch', (req, res) => {
     let keyword = parsedBody.keyword
     let regexSearch = new RegExp(keyword, "i")
     let query = {
-
+        $or: [
+            {
+                instruments: {
+                    $regex: regexSearch
+                }
+            },
+            {
+                styles: {
+                    $regex: regexSearch
+                }
+            },
+            {
+                skillLevel: {
+                    $regex: regexSearch
+                }
+            },
+            {
+                seeking: {
+                    $regex: regexSearch
+                }
+            },
+            {
+                location: {
+                    $regex: regexSearch
+                }
+            }
+        ]
     }
-    if(uid) {
-        
+    if (uid) {
+        dbo.collection("users").find(query).toArray((err, result) => {
+            if (err) throw err;
+            console.log(result);
+            res.send(JSON.stringify({
+                success: true,
+                users: result
+            }))
+        })
     } else {
         res.send(JSON.stringify({
             success: false,
@@ -310,7 +449,7 @@ app.post('/globalSearch', (req, res) => {
     }
 })
 
-app.post('/getCurrentUser', (req, res) => {
+app.get('/getCurrentUser', (req, res) => {
     const sessionCookie = req.cookies.session
     let uid = serverState.sessions[sessionCookie]
     let query = { userId: uid }
@@ -355,11 +494,47 @@ app.post('/getUserByUsername', (req, res) => {
     }
 })
 
+app.post('/getConnectionsByUserId', (req, res) => {
+    let parsedBody = JSON.parse(req.body)
+    const sessionCookie = req.cookies.session
+    let uid = serverState.sessions[sessionCookie]
+    query = { userId: parsedBody.userId }
+    if (uid) {
+        dbo.collection("users").findOne(query, (err, result) => {
+            if(err) throw err;
+            res.send(JSON.stringify({
+                success: true,
+                connectedUsers: result.connections
+            }))
+        })
+    } else {
+        res.send(JSON.stringify({
+            success: false,
+            reason: "couldn't remove connection"
+        }))
+    }
+})
+
 app.post('/upload', (req, res) => {
-    uploader.upload(req, res, (err) => {
+    upload(req, res, (err) => {
         if (err) {
             res.send({
-                success: false
+                success: false,
+                reason: "couldn't upload file"
+            })
+        } else {
+            //const sessionCookie = req.cookies.session
+            let uid = 12345//serverState.sessions[sessionCookie]
+             query = { userId: uid }
+
+            // dbo.collection("users").updateOne(query, {
+            //     $set: {
+            //         image: req.file.filename
+            //     }
+            // })
+            res.send({
+                success: true,
+                file: `uploads/${req.file.filename}`
             })
         }
     })
@@ -398,33 +573,18 @@ app.post('/sessionLogin', (req, res) => {
         })
 })
 
-// Sample code for getting user info with sessionId
 
-app.post('/getInfo', (req, res) => {
-
-    const sessionCookie = req.cookies.session
-
-   // let response = users[serverState.sessions[sessionCookie]]
-   // Was part of my setup
-    
-    res.send(JSON.stringify(response))
-
-})
-
-app.post('/test', (req, res) => {
-    let parsedBody = JSON.parse(req.body)
-    let email = '';
-    admin.auth().getUser(parsedBody.uid)
-        .then((userRecord) => {
-            email = userRecord.email
-        })
-
-    console.log(email)
-})
 
 
 // For app.js
 // INFO for UPLOAD
 // Form must have action="/upload" method="POST" enctype="multipart/form-data"
-// Input type="file" name="someName"
+// Input type="file" name="image"
 // Can include a ternary operator to reflect upload status
+
+
+
+{/* <form action="/upload" method="POST" enctype ="multipart/form-data">
+    <input name="image" type="file" />
+    <button type="submit"> Submit upload form </button>
+</form> */}

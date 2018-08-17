@@ -235,6 +235,21 @@ app.post('/getAllConnections', (req, res) => {
 
 })
 
+app.post('/getConnectionsByUserId', (req, res) => {
+    let parsedBody = JSON.parse(req.body)
+    if (parsedBody.userId) {
+            res.send(JSON.stringify({
+                success: true,
+                connectedUsers: [testUser, otherUsers[1]]
+            }))
+    } else {
+        res.send(JSON.stringify({
+            success: false,
+            reason: "couldn't get connections"
+        }))
+    }
+})
+
 app.post('/reviewUser', (req, res) => {
     let account = JSON.parse(req.body)
     if (account.userId && account.revieweeId && account.review) {
