@@ -98,9 +98,9 @@ MongoClient.connect(url, { useNewUrlParser: true }, (err, db) => {
     })
 })
 
-app.post('/createAccount', (req, res) => {
-    let account = JSON.parse(req.body)
-    if (account.username && account.password) {
+app.get('/createAccount', (req, res) => {
+    
+    if (req) {
         res.send(JSON.stringify({
             success: true,
             userId: 12345
@@ -114,9 +114,9 @@ app.post('/createAccount', (req, res) => {
 
 })
 
-app.post('/login', (req, res) => {
-    let account = JSON.parse(req.body)
-    if (account.username && account.password) {
+app.get('/login', (req, res) => {
+    
+    if (req) {
         res.send(JSON.stringify({
             success: true,
             userId: 12345
@@ -130,9 +130,9 @@ app.post('/login', (req, res) => {
 
 })
 
-app.post('/logout', (req, res) => {
-    let account = JSON.parse(req.body)
-    if (account.username) {
+app.get('/logout', (req, res) => {
+
+    if (req) {
         res.send(JSON.stringify({
             success: true
         }))
@@ -219,9 +219,9 @@ app.post('/removeConnection', (req, res) => {
     }
 })
 
-app.post('/getAllConnections', (req, res) => {
-    let account = JSON.parse(req.body)
-    if (account.userId) {
+app.get('/getAllConnections', (req, res) => {
+    
+    if (req) {
         res.send(JSON.stringify({
             success: true,
             connectedUsers: [otherUsers[0], otherUsers[1]]
@@ -281,11 +281,11 @@ app.post('/globalSearch', (req, res) => {
     }
 });
 
-app.post('/getCurrentUser', (req, res) => {
-    const sessionCookie = req.cookies.session
-    let uid = serverState.sessions[sessionCookie]
-    let query = { userId: uid }
-    if (uid) {
+app.get('/getCurrentUser', (req, res) => {
+    // const sessionCookie = req.cookies.session
+    // let uid = serverState.sessions[sessionCookie]
+    let query = { userId: 12345 }
+    if (req) {
         dbo.collection("users").findOne(query, (err, result) => {
             if (err) throw err;
             console.log("got userById" + result)

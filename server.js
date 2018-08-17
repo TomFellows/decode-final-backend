@@ -254,13 +254,21 @@ app.post('/getUsersByCriteria', (req, res) => {
 
 app.post('/getUserById', (req, res) => {
     let parsedBody = JSON.parse(req.body)
-    let query = {userId: parsedBody.userId}
-    dbo.collection("users").findOne(query, (err, result) => {
-        if (err) throw err;
-        console.log("got userById" + result)
-        res.send(JSON.stringify(result))
-    })
-
+    const sessionCookie = req.cookies.session
+    let uid = serverState.sessions[sessionCookie]
+    let query = { userId: parsedBody.userId }
+    if (uid) {
+        dbo.collection("users").findOne(query, (err, result) => {
+            if (err) throw err;
+            console.log("got userById" + result)
+            res.send(JSON.stringify(result))
+        })
+    } else {
+        res.send(JSON.stringify({
+            success: false,
+            reason: "could not get users"
+        }))
+    }
 })
 
 app.post('/modifyProfile', (req, res) => {
