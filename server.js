@@ -9,7 +9,19 @@ let uploader = require("./uploader.js")
 let url = "mongodb://admin:password123@ds121282.mlab.com:21282/finalapp";
 let dbo;
 
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: "https://final-app-63dc4.firebaseio.com"
+  })
 
+app.use(cookieParser())
+app.use(bodyParser.raw({ type: "*/*"}));
+
+app.use(bodyParser.json({ limit: "50mb" }));
+app.use(bodyParser.urlencoded({ limit: "50mb", extended: true, parameterLimit: 50000 }));
+
+// Public Folder
+app.use(express.static('./public'));
 
 let multer = require("multer")
 let path = require("path")
@@ -32,7 +44,7 @@ const upload = multer({
     fileFilter: function(req, file, cb) {
         checkFileType(file, cb);
     }
-}).single("image")
+})
 
 // Photo file type checker
 function checkFileType(file, cb) {
@@ -49,20 +61,6 @@ function checkFileType(file, cb) {
         return cb("Error: Images Only")
     }
 }
-
-
-
-
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    databaseURL: "https://final-app-63dc4.firebaseio.com"
-  })
-
-app.use(cookieParser())
-app.use(bodyParser.raw({ type: "*/*", limit: "10mb" }));
-
-// Public Folder
-app.use(express.static('./public'));
 
 let serverState = {
     sessions: {}
@@ -184,8 +182,8 @@ app.get('/logout', (req, res) => {
 
 app.post('/getUsersByCriteria', (req, res) => {
     let parsedBody = JSON.parse(req.body)
-    //const sessionCookie = req.cookies.session
-    let uid = parsedBody.userId //serverState.sessions[sessionCookie]
+    const sessionCookie = req.cookies.session
+    let uid = serverState.sessions[sessionCookie]
 
     let instrumentSearch = '';
     let styleSearch = '';
@@ -240,7 +238,7 @@ app.post('/getUsersByCriteria', (req, res) => {
             console.log(result);
             res.send(JSON.stringify({
                 success: true,
-                users: result
+                result: result
             }))
         })
     } else {
@@ -353,21 +351,37 @@ app.post('/removeConnection', (req, res) => {
 })
 
 app.get('/getAllConnections', (req, res) => {
+    // let parsedBody = JSON.parse(req.body)
     const sessionCookie = req.cookies.session
     let uid = serverState.sessions[sessionCookie]
     query = { userId: uid }
     if (uid) {
         dbo.collection("users").findOne(query, (err, result) => {
-            if(err) throw err;
-            res.send(JSON.stringify({
-                success: true,
-                connectedUsers: result.connections
-            }))
+            if (err) throw err;
+            let temp = []
+            for (let i = 0; i < result.connections.length; i++) {
+                temp = temp.concat({userId: result.connections[i].connectionUserId})
+
+            }
+
+            let newQuery = {
+                $or: temp
+                
+            }
+
+            dbo.collection("users").find(newQuery).toArray((err, newResult) => {
+                if (err) throw err;
+                console.log("got all connections for " + uid)
+                res.send(JSON.stringify({
+                    success: true,
+                    connectedUsers: newResult
+                }))
+            })
         })
     } else {
         res.send(JSON.stringify({
             success: false,
-            reason: "couldn't remove connection"
+            reason: "couldn't get connections"
         }))
     }
 })
@@ -523,8 +537,9 @@ app.post('/getConnectionsByUserId', (req, res) => {
     }
 })
 
-app.post('/upload', (req, res) => {
-    upload(req, res, (err) => {
+app.post('/upload', upload.single("myImage"), (req, res) => {
+    
+        console.log(req.file)
         if (err) {
             res.send({
                 success: false,
@@ -545,7 +560,7 @@ app.post('/upload', (req, res) => {
                 file: `uploads/${req.file.filename}`
             })
         }
-    })
+    
 })
 
 
@@ -554,7 +569,8 @@ app.post('/upload', (req, res) => {
 
 app.post('/sessionLogin', (req, res) => {
     // Get the ID token passed and the CSRF token.
-    const idToken = JSON.parse(req.body).idToken
+    const parsedBody = JSON.parse(req.body)
+    const idToken = parsedBody.idToken
     let uid = ''
 
     admin.auth().verifyIdToken(idToken)
