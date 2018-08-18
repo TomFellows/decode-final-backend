@@ -15,10 +15,11 @@ admin.initializeApp({
   })
 
 app.use(cookieParser())
-app.use(bodyParser.raw({ type: "*/*"}));
 
-app.use(bodyParser.json({ limit: "50mb" }));
-app.use(bodyParser.urlencoded({ limit: "50mb", extended: true, parameterLimit: 50000 }));
+
+app.use(bodyParser.raw({ type: "*/*"}));
+app.use(bodyParser.json({type: "*/*", limit: "1000kb" }));
+
 
 // Public Folder
 app.use(express.static('./public'));
@@ -61,6 +62,8 @@ function checkFileType(file, cb) {
         return cb("Error: Images Only")
     }
 }
+
+
 
 let serverState = {
     sessions: {}
