@@ -363,23 +363,31 @@ app.get('/getAllConnections', (req, res) => {
             if (err) throw err;
             let temp = []
             for (let i = 0; i < result.connections.length; i++) {
-                temp = temp.concat({userId: result.connections[i].connectionUserId})
+                temp = temp.concat({ userId: result.connections[i].connectionUserId })
 
             }
 
-            let newQuery = {
-                $or: temp
-                
-            }
+            if (temp[0] !== undefined) {
+                let searchparameter = temp;
+                let newQuery = {
+                    $or: searchparameter
 
-            dbo.collection("users").find(newQuery).toArray((err, newResult) => {
-                if (err) throw err;
-                console.log("got all connections for " + uid)
+                }
+
+                dbo.collection("users").find(newQuery).toArray((err, newResult) => {
+                    if (err) throw err;
+                    console.log("got all connections for " + uid)
+                    res.send(JSON.stringify({
+                        success: true,
+                        connectedUsers: newResult
+                    }))
+                })
+            } else {
                 res.send(JSON.stringify({
                     success: true,
-                    connectedUsers: newResult
+                    connectedUsers: []
                 }))
-            })
+            }
         })
     } else {
         res.send(JSON.stringify({
@@ -524,13 +532,28 @@ app.post('/getConnectionsByUserId', (req, res) => {
     const sessionCookie = req.cookies.session
     let uid = serverState.sessions[sessionCookie]
     query = { userId: parsedBody.userId }
-    if (uid && parsedBody.userID) {
+    if (uid && parsedBody.userId) {
         dbo.collection("users").findOne(query, (err, result) => {
             if(err) throw err;
-            res.send(JSON.stringify({
-                success: true,
-                connectedUsers: result.connections
-            }))
+            let temp = []
+            for (let i = 0; i < result.connections.length; i++) {
+                temp = temp.concat({userId: result.connections[i].connectionUserId})
+
+            }
+
+            let newQuery = {
+                $or: temp
+                
+            }
+
+            dbo.collection("users").find(newQuery).toArray((err, newResult) => {
+                if (err) throw err;
+                console.log("got all connections for " + parsedBody.userId)
+                res.send(JSON.stringify({
+                    success: true,
+                    connectedUsers: newResult
+                }))
+            })
         })
     } else if (uid && !parsedBody.userId){
         res.send(JSON.stringify({
