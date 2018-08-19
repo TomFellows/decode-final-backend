@@ -258,7 +258,7 @@ app.post('/getUserById', (req, res) => {
     const sessionCookie = req.cookies.session
     let uid = serverState.sessions[sessionCookie]
     let query = { userId: parsedBody.userId }
-    if (uid) {
+    if (uid && parsedBody.userId) {
         dbo.collection("users").findOne(query, (err, result) => {
             if (err) throw err;
             console.log("got userById" + result)
@@ -310,7 +310,7 @@ app.post('/addConnection', (req, res) => {
     const sessionCookie = req.cookies.session
     let uid = serverState.sessions[sessionCookie]
     query = { userId: uid }
-    if (uid) {
+    if (uid && parsedBody.connectionUserId) {
         dbo.collection("users").updateOne(query, {
             $push: {
                 connections: { connectionUserId: parsedBody.connectionUserId }
@@ -334,7 +334,7 @@ app.post('/removeConnection', (req, res) => {
     const sessionCookie = req.cookies.session
     let uid = serverState.sessions[sessionCookie]
     query = { userId: uid }
-    if (uid) {
+    if (uid && parsedBody.connectionUserId) {
         dbo.collection("users").updateOne(query, {
             $pull: {
                 connections: { connectionUserId: parsedBody.connectionUserId }
@@ -394,7 +394,7 @@ app.post('/reviewUser', (req, res) => {
     const sessionCookie = req.cookies.session
     let uid = serverState.sessions[sessionCookie]
     let query = { userId: parsedBody.revieweeId }
-    if (uid) {
+    if (uid && revieweeId) {
         dbo.collection("users").updateOne(query, {
             $push: {
                 reviews: {
@@ -500,7 +500,7 @@ app.post('/getUserByUsername', (req, res) => {
     const sessionCookie = req.cookies.session
     let uid = serverState.sessions[sessionCookie]
     let query = {username: parsedBody.username}
-    if (uid) {
+    if (uid && parsedBody.username) {
         dbo.collection("users").findOne(query, (err, result) => {
             if (err) throw err;
             console.log(result)
@@ -524,7 +524,7 @@ app.post('/getConnectionsByUserId', (req, res) => {
     const sessionCookie = req.cookies.session
     let uid = serverState.sessions[sessionCookie]
     query = { userId: parsedBody.userId }
-    if (uid) {
+    if (uid && parsedBody.userID) {
         dbo.collection("users").findOne(query, (err, result) => {
             if(err) throw err;
             res.send(JSON.stringify({
@@ -532,10 +532,20 @@ app.post('/getConnectionsByUserId', (req, res) => {
                 connectedUsers: result.connections
             }))
         })
+    } else if (uid && !parsedBody.userId){
+        res.send(JSON.stringify({
+            success: false,
+            reason: "couldn't find userId"
+        }))
+    } else if (!uid && parsedBody.userId) {
+        res.send(JSON.stringify({
+            success: false,
+            reason: "no session ID"
+        }))
     } else {
         res.send(JSON.stringify({
             success: false,
-            reason: "couldn't remove connection"
+            reason: "couldn't search for connections"
         }))
     }
 })
