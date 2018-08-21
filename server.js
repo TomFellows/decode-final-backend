@@ -1,10 +1,15 @@
 let express = require("express");
 let app = express();
+let http = require('http');
+let server = http.createServer(app);
+let socketIO = require('socket.io');
+let io = socketIO(server);
 let bodyParser = require("body-parser");
 let MongoClient = require("mongodb").MongoClient;
 let admin = require("firebase-admin")
 let serviceAccount = require("./firebasekeyservice.json")
 let cookieParser = require("cookie-parser")
+let cookieIOParser = require('socket.io-cookie-parser');
 let uploader = require("./uploader.js")
 let url = "mongodb://admin:password123@ds121282.mlab.com:21282/finalapp";
 let dbo;
@@ -15,6 +20,7 @@ admin.initializeApp({
   })
 
 app.use(cookieParser())
+io.use(cookieIOParser())
 
 
 app.use(bodyParser.raw({ type: "*/*"}));
@@ -64,7 +70,6 @@ function checkFileType(file, cb) {
 }
 
 
-
 let serverState = {
     sessions: {}
 }
@@ -90,6 +95,17 @@ let testUser = {
     reviews: [
         { reviewerId: 456, overall: 4, skill: 5, reliability: 3, comment: "some string of feedback" },
         { reviewerId: 3, overall: 3, skill: 3, reliability: 3, comment: "pretty average" }
+    ],
+    notifications: [
+        {
+            notificationId: 1240953030,
+            type: "contact" || "message" || "review",
+            userId: "userId of user that sent the notification",
+            read: false || true,
+            username: "username of user that sent the notification",
+            firstName: "first name of user that sent the notification",
+            lastName: "last name of user that sent the notification"
+        }
     ]
 }
 
@@ -97,7 +113,7 @@ let testUser = {
 MongoClient.connect(url, { useNewUrlParser: true }, (err, db) => {
     if (err) throw err;
     dbo = db.db("finalapp")
-    app.listen(5000, () => {
+    server.listen(5000, () => {
         console.log("Listening on port 5000");
     })
 })
@@ -131,12 +147,13 @@ app.get('/createAccount', (req, res) => {
                             seeking: [],
                             connections: [],
                             reviews: [],
-                            image: ''
+                            image: '',
+                            notifications: []
                         }
                         dbo.collection("users").insertOne(newUser, (err, result) => {
                             if (err) throw err;
                             if (result) {
-                                console.log("success")
+                            
                                 res.send(JSON.stringify({
                                     success: true,
                                     userID: newUser.userId
@@ -238,7 +255,7 @@ app.post('/getUsersByCriteria', (req, res) => {
     if (uid) {
         dbo.collection("users").find(query).toArray((err, result) => {
             if (err) throw err;
-            console.log(result);
+            
             res.send(JSON.stringify({
                 success: true,
                 result: result
@@ -261,7 +278,7 @@ app.post('/getUserById', (req, res) => {
     if (uid && parsedBody.userId) {
         dbo.collection("users").findOne(query, (err, result) => {
             if (err) throw err;
-            console.log("got userById" + result)
+            
             res.send(JSON.stringify(result))
         })
     } else {
@@ -292,7 +309,7 @@ app.post('/modifyProfile', (req, res) => {
             }
         }, (err, result) => {
             if (err) throw err;
-            console.log("profile modified")
+            
             res.send(JSON.stringify({
                 success: true
             }))
@@ -320,6 +337,27 @@ app.post('/addConnection', (req, res) => {
             res.send(JSON.stringify({
                 success: true
             }))
+            dbo.collection("users").findOne({ userId: parsedBody.connectionUserId }, (err, result) => {
+                if (err) throw err;
+                length = result.notifications.length
+                dbo.collection("users").findOne({userId: uid}, (err, results) => {
+                    if(err) throw err;
+
+                    dbo.collection("users").updateOne({ userId: parsedBody.connectionUserId }, {
+                        $push: {
+                            notifications: {
+                                notificationId: length,
+                                type: "contact",
+                                userId: uid,
+                                read: false,
+                                firstName: results.firstName,
+                                lastName: results.lastName,
+                                username: results.username
+                            }
+                        }
+                    })
+                })
+            })
         })
     } else {
         res.send(JSON.stringify({
@@ -376,7 +414,7 @@ app.get('/getAllConnections', (req, res) => {
 
                 dbo.collection("users").find(newQuery).toArray((err, newResult) => {
                     if (err) throw err;
-                    console.log("got all connections for " + uid)
+                    
                     res.send(JSON.stringify({
                         success: true,
                         connectedUsers: newResult
@@ -402,25 +440,45 @@ app.post('/reviewUser', (req, res) => {
     const sessionCookie = req.cookies.session
     let uid = serverState.sessions[sessionCookie]
     let query = { userId: parsedBody.revieweeId }
-    if (uid && revieweeId) {
+    if (uid && parsedBody.revieweeId) {
         dbo.collection("users").updateOne(query, {
             $push: {
                 reviews: {
                     reviewerId: uid,
                     review: {
-                        overall: parsedBody.overall,
-                        skill: parsedBody.skill,
-                        reliability: parsedBody.reliability,
-                        comment: parsedBody.comment
+                        overall: parsedBody.review.overall,
+                        skill: parsedBody.review.skill,
+                        reliability: parsedBody.review.reliability,
+                        comment: parsedBody.review.comment
                     }
                 }
             }
-
         }, (err, result) => {
             if (err) throw err;
             res.send(JSON.stringify({
                 success: true
             }))
+            dbo.collection("users").findOne({ userId: parsedBody.revieweeId }, (err, result) => {
+                if (err) throw err;
+                length = result.notifications.length
+                dbo.collection("users").findOne({userId: uid}, (err, results) => {
+                    if(err) throw err;
+
+                    dbo.collection("users").updateOne({ userId: parsedBody.revieweeId }, {
+                        $push: {
+                            notifications: {
+                                notificationId: length,
+                                type: "review",
+                                userId: uid,
+                                read: false,
+                                firstName: results.firstName,
+                                lastName: results.lastName,
+                                username: results.username
+                            }
+                        }
+                    })
+                })
+            })
         })
     } else {
         res.send(JSON.stringify({
@@ -468,7 +526,7 @@ app.post('/globalSearch', (req, res) => {
     if (uid) {
         dbo.collection("users").find(query).toArray((err, result) => {
             if (err) throw err;
-            console.log(result);
+            
             res.send(JSON.stringify({
                 success: true,
                 users: result
@@ -489,7 +547,7 @@ app.get('/getCurrentUser', (req, res) => {
     if (uid) {
         dbo.collection("users").findOne(query, (err, result) => {
             if (err) throw err;
-            console.log("got currentUser" + result)
+            
             res.send(JSON.stringify({
                 success: true,
                 user: result
@@ -511,7 +569,7 @@ app.post('/getUserByUsername', (req, res) => {
     if (uid && parsedBody.username) {
         dbo.collection("users").findOne(query, (err, result) => {
             if (err) throw err;
-            console.log(result)
+        
             res.send(JSON.stringify({
                 success: true,
                 user: result
@@ -548,7 +606,7 @@ app.post('/getConnectionsByUserId', (req, res) => {
 
             dbo.collection("users").find(newQuery).toArray((err, newResult) => {
                 if (err) throw err;
-                console.log("got all connections for " + parsedBody.userId)
+                
                 res.send(JSON.stringify({
                     success: true,
                     connectedUsers: newResult
@@ -633,6 +691,164 @@ app.post('/sessionLogin', (req, res) => {
         })
 })
 
+app.post('/readNotification', (req, res) => {
+    let parsedBody = JSON.parse(req.body)
+    const sessionCookie = req.cookies.session
+    let uid = serverState.sessions[sessionCookie]
+    let query = { 
+        $and: [
+            {userId: uid},
+            {notifications: {$elemMatch: { notificationId: parsedBody.notificationId }}}
+        ]
+    }
+    if (uid && parsedBody.notificationId) {
+
+        dbo.collection("users").updateOne(query, {
+            $set: { "notifications.$[i].read":true} 
+        }, {
+            arrayFilters:[{"i.notificationId": parsedBody.notificationId}]},
+            (err, result) => {
+            if (err) throw err;
+            res.send(JSON.stringify({   
+                success: true
+            }))
+        })
+    } else {
+        res.send(JSON.stringify({
+            success: false,
+            reason: "could not read notification ID"
+        }))
+    }
+})
+
+// Chat connection
+
+io.on('connection', socket => {
+
+    try {
+        const sessionCookie = socket.request.cookies.session;
+        let uid = serverState.sessions[sessionCookie]
+
+        let chat = {
+            roomName: '',
+            users: [],
+            messages: []
+        }
+
+        if (uid) {
+            socket.on('room', (roomInfos) => {
+
+                let firstQuery = {
+                    $and: [
+                        { users: uid },
+                        { users: roomInfos.otherUserId }
+                    ]
+                }
+
+                dbo.collection("chats").findOne(firstQuery, (err, result) => {
+                    if (err) throw err;
+                    if (result) {
+                        chat.roomName = roomInfos.name;
+                        chat.users = result.users;
+                        chat.messages = result.messages
+                    } else if (!result) {
+                        let insertQuery = {
+                            users: [uid, roomInfos.otherUserId],
+                            roomName: roomInfos.name,
+                            messages: []
+                        }
+                        dbo.collection("chats").insertOne(insertQuery, (err, result) => {
+                            if (err) throw err;
+
+                        })
+                    }
+                })
+
+                socket.join(roomInfos.name, () => {
+
+                    io.in(chat.roomName).emit('serverMessage', { content: "you are in chat room " + chat.roomName, userId: "server", roomName: roomInfos.name })
+
+                })
+            })
+
+            socket.on('enterChat', (message) => {
+
+                chat.messages = []
+
+                dbo.collection("chats").findOne({ roomName: message.roomName }, (err, result) => {
+                    if (err) throw err;
+                    chat.messages = result.messages
+
+                    io.in(message.roomName).emit('previousMessages', { messages: chat.messages, roomName: message.roomName })
+                })
+            })
+
+            socket.on('message', (message) => {
+
+                const sessionCookie = socket.request.cookies.session;
+                let confirmId = serverState.sessions[sessionCookie]
+
+                if (confirmId) {
+                    console.log(uid + " sent message: " + message.content + " in " + message.roomName)
+
+                    dbo.collection("chats").findOne({ roomName: message.roomName }, (err, result) => {
+                        if (err) throw err;
+                        otherUser = result.users.filter(element => element !== confirmId).toString()
+                        chat.messages = result.messages
+
+                        chat.messages = chat.messages.concat({ content: message.content, userId: confirmId, roomName: message.roomName })
+                        io.in(message.roomName).emit('message', { content: message.content, userId: confirmId, roomName: message.roomName })
+
+
+                        dbo.collection("chats").updateOne({ roomName: message.roomName }, {
+                            $set: {
+                                messages: chat.messages
+                            }
+                        })
+
+                        dbo.collection("users").findOne({ userId: otherUser }, (err, result) => {
+                            if (err) throw err;
+                            length = result.notifications.length
+                            dbo.collection("users").findOne({userId: confirmId}, (err, results) => {
+                                if(err) throw err;
+
+                                dbo.collection("users").updateOne({ userId: otherUser }, {
+                                    $push: {
+                                        notifications: {
+                                            notificationId: length,
+                                            type: "message",
+                                            userId: uid,
+                                            read: false,
+                                            firstName: results.firstName,
+                                            lastName: results.lastName,
+                                            username: results.username
+                                        }
+                                    }
+                                })
+                            })
+                        })
+                    })
+                }
+            })
+
+            socket.on('disconnect', () => {
+                console.log(uid + ' connection disconnected')
+            })
+
+        } else {
+            //io.emit('connection', "you do not have a session ID")
+        }
+    }
+
+    catch (err) {
+        console.log(error);
+    }
+
+})
+
+
+
+
 
 
 
@@ -641,8 +857,6 @@ app.post('/sessionLogin', (req, res) => {
 // Form must have action="/upload" method="POST" enctype="multipart/form-data"
 // Input type="file" name="image"
 // Can include a ternary operator to reflect upload status
-
-
 
 {/* <form action="/upload" method="POST" enctype ="multipart/form-data">
     <input name="image" type="file" />
