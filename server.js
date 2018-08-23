@@ -272,11 +272,23 @@ app.post('/getUsersByCriteria', (req, res) => {
                 if (err) throw err;
                 
                  let resultArray = result.filter(x => x.userId !== uid)
-                dbo.collection("users")
-                res.send(JSON.stringify({
-                    success: true,
-                    result: resultArray
-                }))
+
+                dbo.collection("users").findOne({userId: uid}, (err, results) => {
+                    if(err) throw err;
+
+                    let filterArray = results.connections
+
+                    for (let i = 0; i < filterArray.length; i++) {
+                        resultArray = resultArray.filter(x => x.userId !== filterArray[i].connectionUserId)
+                    }
+
+                    res.send(JSON.stringify({
+                        success: true,
+                        result: resultArray
+                    }))
+                })
+
+                
             })
         } else {
             res.send(JSON.stringify({
@@ -623,11 +635,23 @@ app.post('/globalSearch', (req, res) => {
         if (uid) {
             dbo.collection("users").find(query).toArray((err, result) => {
                 if (err) throw err;
+                
+                 let resultArray = result.filter(x => x.userId !== uid)
 
-                res.send(JSON.stringify({
-                    success: true,
-                    users: result
-                }))
+                dbo.collection("users").findOne({userId: uid}, (err, results) => {
+                    if(err) throw err;
+
+                    let filterArray = results.connections
+
+                    for (let i = 0; i < filterArray.length; i++) {
+                        resultArray = resultArray.filter(x => x.userId !== filterArray[i].connectionUserId)
+                    }
+
+                    res.send(JSON.stringify({
+                        success: true,
+                        users: resultArray
+                    }))
+                })
             })
         } else {
             res.send(JSON.stringify({
