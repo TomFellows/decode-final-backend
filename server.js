@@ -147,7 +147,8 @@ app.get('/createAccount', (req, res) => {
                                 reviews: [],
                                 image: './uploads/placeholderIcon.png',
                                 media: [],
-                                notifications: []
+                                notifications: [],
+                                userRating: "-"
                             }
                             dbo.collection("users").insertOne(newUser, (err, result) => {
                                 if (err) throw err;
@@ -269,10 +270,12 @@ app.post('/getUsersByCriteria', (req, res) => {
         if (uid) {
             dbo.collection("users").find(query).toArray((err, result) => {
                 if (err) throw err;
+                
+                 let resultArray = result.filter(x => x.userId !== uid)
 
                 res.send(JSON.stringify({
                     success: true,
-                    result: result
+                    result: resultArray
                 }))
             })
         } else {
@@ -463,6 +466,7 @@ app.get('/getAllConnections', (req, res) => {
                     }
 
                     dbo.collection("users").find(newQuery).toArray((err, newResult) => {
+                        console.log(err)
                         if (err) throw err;
 
                         res.send(JSON.stringify({
@@ -501,12 +505,13 @@ app.post('/reviewUser', (req, res) => {
         if (uid && parsedBody.revieweeId) {
             dbo.collection("users").findOne({ userId: uid }, (err, result) => {
                 if (err) throw err;
+                let overall = parseInt(parsedBody.review.overall)
 
                 dbo.collection("users").updateOne(query, {
                     $push: {
                         reviews: {
                             review: {
-                                overall: parseInt(parsedBody.review.overall),
+                                overall: overall,
                                 skill: parsedBody.review.skill,
                                 reliability: parsedBody.review.reliability,
                                 comment: parsedBody.review.comment
@@ -528,6 +533,7 @@ app.post('/reviewUser', (req, res) => {
                         if (err) throw err;
                         length = result.notifications.length
                         let reviews = result.reviews
+                        
                         dbo.collection("users").findOne({ userId: uid }, (err, results) => {
                             if (err) throw err;
 
@@ -545,12 +551,16 @@ app.post('/reviewUser', (req, res) => {
                                 }
                             }, (err, result) => {
                                 if (err) throw err;
-                                let rating = 0;
+                                let rating = 0
 
                                 for (let i = 0; i < reviews.length; i++) {
                                     rating = rating + reviews[i].review.overall
                                 }
-                                rating = rating / reviews.length
+                                rating = parseFloat((rating / reviews.length).toPrecision(3))
+
+                                if(typeof rating !== "number"){
+                                    rating = "-"
+                                }
 
                                 dbo.collection("users").updateOne({ userId: parsedBody.revieweeId }, {
                                     $set: { userRating: rating }
@@ -712,19 +722,26 @@ app.post('/getConnectionsByUserId', (req, res) => {
 
                     }
 
-                    let newQuery = {
-                        $or: temp
+                    if (temp[0] !== undefined) {
+                        let newQuery = {
+                            $or: temp
 
-                    }
+                        }
 
-                    dbo.collection("users").find(newQuery).toArray((err, newResult) => {
-                        if (err) throw err;
+                        dbo.collection("users").find(newQuery).toArray((err, newResult) => {
+                            if (err) throw err;
 
+                            res.send(JSON.stringify({
+                                success: true,
+                                connectedUsers: newResult
+                            }))
+                        })
+                    } else {
                         res.send(JSON.stringify({
                             success: true,
-                            connectedUsers: newResult
+                            connectedUsers: []
                         }))
-                    })
+                    }
                 })
             } catch (err) {
                 console.log(err)
@@ -775,7 +792,7 @@ app.post('/upload', upload.single("myImage"), (req, res) => {
 
             dbo.collection("users").updateOne(query, {
                 $set: {
-                    image: `./uploads/${req.file.filename}`
+                    image: `/uploads/${req.file.filename}`
                 }
             })
             res.send(JSON.stringify({
