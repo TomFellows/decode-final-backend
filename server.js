@@ -272,7 +272,7 @@ app.post('/getUsersByCriteria', (req, res) => {
                 if (err) throw err;
                 
                  let resultArray = result.filter(x => x.userId !== uid)
-
+                dbo.collection("users")
                 res.send(JSON.stringify({
                     success: true,
                     result: resultArray
@@ -935,7 +935,11 @@ io.on('connection', socket => {
 
                 dbo.collection("chats").findOne({ roomName: message.roomName }, (err, result) => {
                     if (err) throw err;
-                    chat.messages = result.messages
+                    if (result) {
+                        chat.messages = result.messages
+                    } else {
+                        chat.messages = []
+                    }
 
                     io.in(message.roomName).emit('previousMessages', { messages: chat.messages, roomName: message.roomName })
                 })
