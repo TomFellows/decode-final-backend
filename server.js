@@ -466,7 +466,6 @@ app.get('/getAllConnections', (req, res) => {
                     }
 
                     dbo.collection("users").find(newQuery).toArray((err, newResult) => {
-                        console.log(err)
                         if (err) throw err;
 
                         res.send(JSON.stringify({
